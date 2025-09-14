@@ -26,7 +26,7 @@ services:
     container_name: nas_music_backend
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/nas_music_downloader
-      SECRET_KEY: your-secret-key-change-in-production-please-20250914
+      SECRET_KEY: your-secret-key-change-in-production
       DEBUG: "false"
       OUTPUT_DIRECTORY: /app/downloads
     volumes:
