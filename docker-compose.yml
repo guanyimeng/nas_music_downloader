@@ -12,7 +12,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
-      - "5432:5432"
+      - "5432:5432" # Change if needed
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -30,7 +30,7 @@ services:
       DEBUG: "false"
       OUTPUT_DIRECTORY: /app/downloads
     volumes:
-      - "/home/dolphins22/Music:/app/downloads" # NAS storage path here - adjust the host path as needed
+      - "/home/dolphins22/Music:/app/downloads:rw" # NAS storage path here - adjust the host path as needed
       # - "E:/app/downloads:/app/downloads" # Testing in docker on Windows
     ports:
       - "8000:8000"
