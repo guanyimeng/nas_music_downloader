@@ -1,107 +1,70 @@
-# NAS Music Downloader
+# NAS Music Downloader Backend
 
-A FastAPI-based music downloader service designed to run on NAS systems with PostgreSQL database, user authentication, and comprehensive audit logging.
-
-## Features
-
-- 🎵 **Music Download**: Download music from YouTube and other platforms using yt-dlp
-- 🔐 **User Authentication**: JWT-based authentication system with user registration/login
-- 📊 **Download History**: Complete download history with metadata tracking
-- 🔍 **Audit Logging**: Comprehensive audit trail for all user actions
-- 🐳 **Docker Ready**: Containerized deployment with Docker Compose
-- 💾 **PostgreSQL**: Robust database with proper relationships and indexing
-- 📁 **NAS Integration**: Direct file output to NAS filesystem via volume mounting
-
-## Quick Start
-
-### Prerequisites
-- Docker and Docker Compose
-- NAS system with Docker support
-
-### Deployment on NAS
-
-1. **Clone the repository to your NAS**:
-   ```bash
-   git clone <repository-url>
-   cd nas_music_downloader
-   ```
-
-2. **Configure environment**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your settings
-   ```
-
-3. **Update docker-compose.yml**:
-   - Change the volume mount path to your NAS music directory:
-   ```yaml
-   volumes:
-     - /volume1/music:/app/downloads  # Adjust this path for your NAS
-   ```
-
-4. **Start the services**:
-   ```bash
-   docker-compose up -d
-   ```
-
-5. **Access the API**:
-   - Backend API: `http://your-nas-ip:8000`
-   - API Documentation: `http://your-nas-ip:8000/docs`
+## Overview
+This backend service provides a RESTful API for user authentication, music download management, and system monitoring. It is built with FastAPI and uses PostgreSQL for data persistence.
 
 ## API Endpoints
 
 ### Authentication
-- `POST /auth/register` - Register new user
-- `POST /auth/login` - Login user
-- `POST /auth/logout` - Logout user
-- `GET /auth/me` - Get current user info
+- `POST /auth/register` - Register a new user
+- `POST /auth/login` - Authenticate user and obtain JWT token
+- `POST /auth/logout` - Logout user and blacklist token
+- `GET /auth/me` - Retrieve current authenticated user information
 
 ### Downloads
-- `POST /api/download` - Download music from URL
-- `GET /api/downloads` - Get download history (paginated)
-- `GET /api/downloads/{id}` - Get specific download
+- `POST /api/download` - Initiate a music download from a given URL
+- `GET /api/downloads` - Retrieve paginated download history for the user
+- `GET /api/downloads/{id}` - Retrieve details of a specific download by ID
 
 ### System
-- `GET /health` - Health check
-- `GET /` - Service info
+- `GET /health` - Health check endpoint to verify service status
+- `GET /` - Basic service information and status
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:password@localhost:5432/nas_music_downloader` |
-| `SECRET_KEY` | JWT secret key | `your-secret-key-change-in-production` |
-| `OUTPUT_DIRECTORY` | Download output directory | `/app/downloads` |
-| `DEBUG` | Enable debug mode | `false` |
+| Variable           | Description                      | Default                                               |
+|--------------------|--------------------------------|-------------------------------------------------------|
+| `DATABASE_URL`      | PostgreSQL connection string   | `postgresql://postgres:password@localhost:5432/nas_music_downloader` |
+| `SECRET_KEY`        | JWT secret key for token signing | `your-secret-key-change-in-production`               |
+| `OUTPUT_DIRECTORY`  | Directory path for downloaded files | `/app/downloads`                                    |
+| `DEBUG`            | Enable debug mode (true/false) | `false`                                              |
 
-## Database Schema
+## Database Models
 
-### Users
-- User management with authentication
-- Admin role support
-- Activity tracking
+### User
+- Stores user credentials and profile information
+- Supports admin role for privileged access
+- Tracks user activity and status
 
-### Download History
-- Complete download metadata
-- File paths and sizes
-- Status tracking (pending, downloading, completed, failed)
+### DownloadHistory
+- Records metadata for each download request
+- Stores file paths, sizes, and download status (pending, in-progress, completed, failed)
+- Supports pagination for history retrieval
 
-### Audit Logs
-- All user actions logged
-- IP address and user agent tracking
-- Detailed action context
+### TokenBlacklist
+- Maintains a list of invalidated JWT tokens for logout handling
+- Tokens expire naturally and are periodically cleaned up
 
-## Development
+### AuditLog
+- Logs all user actions for security and compliance
+- Captures IP address, user agent, and detailed action context
 
-### Local Development Setup
+## Development Setup
 
-1. **Install dependencies**:
+### Prerequisites
+- Python 3.10+
+- Poetry for dependency management
+- Docker (for PostgreSQL container)
+
+### Local Development
+
+1. Install dependencies:
    ```bash
    cd backend
    poetry install
    ```
 
-2. **Start PostgreSQL**:
+2. Start PostgreSQL database:
    ```bash
    docker run -d --name postgres \
      -e POSTGRES_DB=nas_music_downloader \
@@ -110,24 +73,26 @@ A FastAPI-based music downloader service designed to run on NAS systems with Pos
      -p 5432:5432 postgres:15-alpine
    ```
 
-3. **Run the application**:
+3. Run the FastAPI application with auto-reload:
    ```bash
    cd backend
-   poetry run uvicorn src.app:app --reload
+   poetry run uvicorn src.music_downloader.app:app --reload
    ```
 
-### Project Structure
+## Project Structure
+
 ```
 nas_music_downloader/
 ├── backend/
 │   ├── src/
-│   │   ├── auth/          # Authentication system
-│   │   ├── config/        # Configuration settings
-│   │   ├── model/         # Database models
-│   │   ├── route/         # API routes
-│   │   ├── schema/        # Pydantic schemas
-│   │   ├── service/       # Business logic
-│   │   └── app.py         # FastAPI application
+│   │   ├── music_downloader/
+│   │   │   ├── auth/          # Authentication logic and routes
+│   │   │   ├── config/        # Configuration and settings
+│   │   │   ├── model/         # Database models
+│   │   │   ├── route/         # API route handlers
+│   │   │   ├── schema/        # Pydantic schemas for request/response validation
+│   │   │   ├── service/       # Business logic and external integrations
+│   │   │   └── app.py         # FastAPI application entrypoint
 │   ├── Dockerfile
 │   └── pyproject.toml
 ├── docker-compose.yml
@@ -136,47 +101,25 @@ nas_music_downloader/
 
 ## Security Features
 
-- JWT token-based authentication
-- Password hashing with bcrypt
-- Non-root container execution
-- Input validation and sanitization
-- Comprehensive audit logging
+- JWT token-based authentication with token blacklisting on logout
+- Password hashing using bcrypt for secure credential storage
+- Runs as non-root user inside Docker container
+- Input validation and sanitization via Pydantic schemas
+- Comprehensive audit logging for all user actions
 
-## NAS-Specific Configuration
+## Monitoring and Logging
 
-### Synology NAS
-```yaml
-volumes:
-  - /volume1/music:/app/downloads
-```
+- Health check endpoint available at `/health`
+- Structured logging with configurable log levels
+- Docker health checks included in container setup
+- Audit trail maintained for compliance and troubleshooting
 
-### QNAP NAS
-```yaml
-volumes:
-  - /share/music:/app/downloads
-```
+## User Registration
 
-### TrueNAS
-```yaml
-volumes:
-  - /mnt/pool/music:/app/downloads
-```
+- Register new users via the API endpoint: `POST /auth/register`
 
-## Monitoring and Logs
+## Token Blacklist Cleanup
 
-- Health check endpoint at `/health`
-- Structured logging with configurable levels
-- Docker health checks included
-- Audit trail for compliance
-
-## License
-
-MIT License
-
-
--- Create a user from api:
--- Use /auth/register/
-
--- Cleanup expired blacklist entries.
--- Tokens will naturally expire; you can periodically delete old rows:
-DELETE FROM token_blacklist WHERE expires_at < now();
+- Expired tokens are removed periodically to keep the blacklist clean:
+  ```sql
+  DELETE FROM token_blacklist WHERE expires_at < now();
