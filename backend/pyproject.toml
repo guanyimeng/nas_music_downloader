@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Nick Meng <mgy0822@gmail.com>"]
 readme = "README.md"
-packages = [{include = "src"}]
+packages = [{include = "music_downloader", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -15,9 +15,11 @@ uvicorn = "^0.35.0"
 sqlalchemy = "^2.0.31"
 alembic = "^1.13.2"
 python-jose = {extras = ["cryptography"], version = "^3.5.0"}
-passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+passlib = "^1.7.4"
+bcrypt = "<4"  # 降级以兼容 passlib
 pydantic-settings = "^2.10.1"
-psycopg2 = "^2.9.10"
+psycopg2-binary = "^2.9.10"
+python-multipart = "^0.0.20"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.0"

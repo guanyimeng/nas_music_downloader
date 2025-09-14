@@ -1,67 +1,50 @@
-# Dockerfile for NAS Music Downloader Backend with PostgreSQL support
-
-# --- Build stage ---
-FROM python:3.11-slim AS builder
-
-WORKDIR /app
-
-# Install system dependencies for building
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Poetry and poetry-plugin-export
-RUN pip install --no-cache-dir poetry poetry-plugin-export
-
-# Copy only dependency files
-COPY poetry.lock pyproject.toml README.md ./
-COPY src/ ./src/
-
-# Export requirements.txt for production install
-RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
-
-# --- Main image ---
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies first
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libpq5 \
+    curl \
+    build-essential \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements.txt from builder and install with pip
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Install Poetry
+RUN pip install --no-cache-dir poetry
 
-# Create non-root user for security
-RUN useradd --create-home --shell /bin/bash app
+# Copy project files including src
+COPY poetry.lock pyproject.toml README.md ./
+COPY src/ ./src/
 
-# Create directories and set permissions
-RUN mkdir -p /app/downloads && chown -R app:app /app
+# Install dependencies globally (not in a virtualenv)
+RUN poetry config virtualenvs.create false \
+    && poetry install --only main
 
-# Copy backend source code
-COPY --chown=app:app src/ ./src/
+# Create non-root user and ensure /app and downloads are owned by app
+RUN useradd -m -u 1000 -s /usr/sbin/nologin app \
+    && mkdir -p /app/downloads \
+    && chown -R app:app /app \
+    && chmod -R 755 /app
 
 # Switch to non-root user
 USER app
 
-# Create volume mount point for NAS storage
+# Volume for downloads
 VOLUME ["/app/downloads"]
 
 # Environment variables
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 ENV OUTPUT_DIRECTORY=/app/downloads
+ENV DEBUG=false
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+# Lightweight healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Expose port
+# Expose FastAPI port
 EXPOSE 8000
 
-# Start FastAPI app
-CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Start FastAPI app directly
+CMD ["python", "-m", "music_downloader.app"]

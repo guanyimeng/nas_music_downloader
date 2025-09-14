@@ -30,8 +30,8 @@ services:
       DEBUG: "false"
       OUTPUT_DIRECTORY: /app/downloads
     volumes:
-      # Mount your NAS storage path here - adjust the host path as needed
-      - /volume1/music:/app/downloads  # Example NAS path - change this to your actual NAS music folder
+      - "/home/dolphins22/Music:/app/downloads" # NAS storage path here - adjust the host path as needed
+      # - "E:/app/downloads:/app/downloads" # Testing in docker on Windows
     ports:
       - "8000:8000"
     depends_on:

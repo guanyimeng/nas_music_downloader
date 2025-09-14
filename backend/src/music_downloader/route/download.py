@@ -58,7 +58,7 @@ async def download_music(
         downloader = MusicDownloader(output_dir=settings.output_directory)
         download_result = downloader.download_audio(url=url)
         
-        if download_result.success and download_result.file_path:
+        if download_result.success:
             # Update download record with success
             download_record.status = "completed"
             download_record.title = download_result.title
@@ -92,7 +92,7 @@ async def download_music(
         else:
             # Update download record with failure
             download_record.status = "failed"
-            download_record.error_message = "Download failed - no output file"
+            download_record.error_message = "Download failed"
             download_record.download_completed_at = datetime.utcnow()
             db.commit()
             
@@ -101,7 +101,7 @@ async def download_music(
                 user_id=current_user.id,
                 action="download_failed",
                 url=url,
-                details={"download_id": download_record.id, "error": "No output file"},
+                details={"download_id": download_record.id, "error": "Download failed"},
                 ip_address=http_request.client.host,
                 user_agent=http_request.headers.get("user-agent"),
                 status="failed"

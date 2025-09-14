@@ -172,3 +172,11 @@ volumes:
 ## License
 
 MIT License
+
+
+-- Create a user from api:
+-- Use /auth/register/
+
+-- Cleanup expired blacklist entries.
+-- Tokens will naturally expire; you can periodically delete old rows:
+DELETE FROM token_blacklist WHERE expires_at < now();

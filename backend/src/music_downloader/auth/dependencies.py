@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 
 import logging
 from types import SimpleNamespace
-from jose import jwt
+from jose import JWTError, ExpiredSignatureError
+
 
 from ..model import get_db, User, TokenBlacklist
 from .security import verify_token
@@ -32,9 +33,9 @@ async def get_current_user(
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.PyJWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
         
     # Check blacklist
