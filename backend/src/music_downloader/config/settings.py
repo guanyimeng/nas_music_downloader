@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     )
     
     # JWT settings
-    secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-please-20250914")
+    secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     
