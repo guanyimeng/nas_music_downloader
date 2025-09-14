@@ -1,68 +1,168 @@
 import yt_dlp
 import logging
-import random
-import os
-import fnmatch
-import json
+import re
 from datetime import datetime
+from typing import Optional, Dict, Any
+from pathlib import Path
+from dataclasses import dataclass
 
-logger = logging.getLogger("yt_dlp downloader")
+from ..config.settings import settings
 
-class yt_downloader:
-    def __init__(self):
-        self.__seed = random.randint(0, 2**32 - 1)
-        self.__logger = logging.getLogger(yt_downloader.__name__)
-        self.__output_folder = f'data/output/{self.__seed}/'
-        self.output_filename =""
-        self.output_musicname = ""
-        self.download_status = ""
+@dataclass
+class DownloadResult:
+    """Result of a download operation"""
+    success: bool
+    file_path: Optional[str] = None
+    title: Optional[str] = None
+    artist: Optional[str] = None
+    duration: Optional[float] = None
+    file_size: Optional[int] = None
+    error_message: Optional[str] = None
 
-    def download_youtube_as_mp3(self, url) -> str:
-        if os.path.exists(self.__output_folder):
-            self.__logger.warning(f"Output folder already exists: {self.__output_folder}")
-            for filename in os.listdir(self.__output_folder):
-                file_path = os.path.join(self.__output_folder, filename)
-                try:
-                    if os.path.isfile(file_path):
-                        os.remove(file_path)
-                        self.__logger.info(f"Removed file: {file_path}")
-                except Exception as e:
-                    self.__logger.warning(f"Failed to remove file {file_path}: {e}")
+class MusicDownloader:
+    def __init__(self, output_dir: str = None):
+        self.output_dir = Path(output_dir or settings.output_directory)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        
+        # Ensure output directory exists
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+    def _sanitize_filename(self, filename: str) -> str:
+        """Sanitize filename for filesystem compatibility"""
+        # Remove or replace invalid characters
+        filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+        # Remove multiple spaces and trim
+        filename = re.sub(r'\s+', ' ', filename).strip()
+        # Limit length
+        if len(filename) > 200:
+            filename = filename[:200] + "..."
+        return filename
+    
+    def _extract_metadata(self, info: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            'title': info.get('title', '').strip(),
+            'artist': info.get('uploader', '').strip() or info.get('creator', '').strip(),
+            'duration': info.get('duration'),  # in seconds
+            'description': info.get('description', ''),
+            'upload_date': info.get('upload_date'),
+            'view_count': info.get('view_count'),
+            'webpage_url': info.get('webpage_url'),
+        }
+    
+    def download_audio(self, url: str) -> DownloadResult:
         try:
+            # Create unique subdirectory for this download
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            download_dir = self.output_dir / f"download_{timestamp}"
+            download_dir.mkdir(exist_ok=True)
+            
+            # Configure yt-dlp options
             ydl_opts = {
                 'format': 'bestaudio/best',
-                'outtmpl': f'{self.__output_folder}/%(title)s.%(ext)s',
+                'outtmpl': str(download_dir / '%(title)s.%(ext)s'),
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': '192',
                 }],
-                'quiet': False,
+                'quiet': True,
+                'no_warnings': False,
                 'noplaylist': True,
+                'extractaudio': True,
+                'audioformat': 'mp3',
+                'embed_subs': False,
+                'writesubtitles': False,
+                'writeautomaticsub': False,
             }
+            
+            # Download and extract info
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                # Extract info first
+                info = ydl.extract_info(url, download=False)
+                if not info:
+                    return DownloadResult(
+                        success=False,
+                        error_message="Could not extract video information"
+                    )
+                
+                # Extract metadata
+                metadata = self._extract_metadata(info)
+                self.logger.info(f"Downloading: {metadata['title']} by {metadata['artist']}")
+                
+                # Perform download
                 ydl.download([url])
-                logger.info(f"Downloading from URL: {url}")
+                
+                # Find the downloaded MP3 file
+                mp3_files = list(download_dir.glob("*.mp3"))
+                if not mp3_files:
+                    return DownloadResult(
+                        success=False,
+                        error_message="No MP3 file found after download"
+                    )
+                
+                # Get the first (and should be only) MP3 file
+                output_file = mp3_files[0]
+                
+                # Sanitize filename and move to final location
+                sanitized_name = self._sanitize_filename(f"{metadata['title']}.mp3")
+                final_path = self.output_dir / sanitized_name
+                
+                # Handle filename conflicts
+                counter = 1
+                while final_path.exists():
+                    name_part = sanitized_name.rsplit('.', 1)[0]
+                    final_path = self.output_dir / f"{name_part}_{counter}.mp3"
+                    counter += 1
+                
+                # Move file to final location
+                output_file.rename(final_path)
+                
+                # Clean up temporary directory
+                try:
+                    download_dir.rmdir()
+                except OSError:
+                    # Directory not empty, clean up remaining files
+                    for file in download_dir.iterdir():
+                        file.unlink()
+                    download_dir.rmdir()
+                
+                # Get file size
+                file_size = final_path.stat().st_size if final_path.exists() else None
+                
+                self.logger.info(f"Successfully downloaded: {final_path}")
+                
+                return DownloadResult(
+                    success=True,
+                    file_path=str(final_path),
+                    title=metadata['title'],
+                    artist=metadata['artist'],
+                    duration=metadata['duration'],
+                    file_size=file_size
+                )
+                
+        except yt_dlp.DownloadError as e:
+            error_msg = f"Download failed: {str(e)}"
+            self.logger.error(error_msg)
+            return DownloadResult(success=False, error_message=error_msg)
+            
+        except Exception as e:
+            error_msg = f"Unexpected error during download: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            return DownloadResult(success=False, error_message=error_msg)
 
-            for filename in os.listdir(self.__output_folder):
-                if fnmatch.fnmatch(filename, '*.mp3'):
-                    self.output_filename = os.path.join(self.__output_folder, filename)
-                    self.output_musicname = filename
-                    self.download_status = "; Downloaded successfully ✅"
-                    logger.info(f"Downloaded file: {self.output_filename}")
-                    return self.output_filename
-         
-        except: 
-            logger.error("Downloading failed")
-            self.download_status = "; Download failed ❌"
-
-# Testing
+# For testing
 if __name__ == "__main__":
-    youtube_url = input("Enter YouTube video URL: ")
-    downloader = yt_downloader()
-    output_file = downloader.download_youtube_as_mp3(youtube_url)
-    if output_file:
-        print(f"Downloaded file saved at: {output_file}")
+    # url = input("Enter video URL: ")
+    url = "https://www.youtube.com/watch?v=IhuPnNYQyLk"
+    downloader = MusicDownloader()
+    result = downloader.download_audio(url)
+    
+    if result.success:
+        print(f"Downloaded: {result.title}")
+        print(f"File: {result.file_path}")
+        print(f"Artist: {result.artist}")
+        print(f"Duration: {result.duration}s")
+        print(f"Size: {result.file_size} bytes")
     else:
-        print("Download failed")
+        print(f"Download failed: {result.error_message}")
     
