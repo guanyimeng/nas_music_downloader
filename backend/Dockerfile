@@ -17,6 +17,8 @@ RUN pip install --no-cache-dir poetry
 # Copy project files including src
 COPY poetry.lock pyproject.toml README.md ./
 COPY src/ ./src/
+COPY alembic.ini ./
+COPY alembic ./alembic/
 
 # Install dependencies globally (not in a virtualenv)
 RUN poetry config virtualenvs.create false \
@@ -46,5 +48,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Expose FastAPI port
 EXPOSE 8000
 
-# Start FastAPI app directly
-CMD ["python", "-m", "music_downloader.app"]
+# Run DB migrations then start FastAPI
+CMD ["sh", "-c", "(alembic upgrade head || (alembic stamp 0001_initial && alembic upgrade head)) && python -m music_downloader.app"]

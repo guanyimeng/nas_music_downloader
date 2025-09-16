@@ -6,7 +6,6 @@ import logging
 import os
 
 from .config.settings import settings
-from .model import init_db
 from .route.auth import auth_router
 from .route.download import download_router
 from .route.monitor import monitor_router
@@ -43,13 +42,7 @@ def create_app():
         allow_headers=["*"],
     )
 
-    # Initialize database
-    try:
-        init_db()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        raise
+    # Database schema handled by Alembic migrations at container start
 
     # Ensure output directory exists
     os.makedirs(settings.output_directory, exist_ok=True)

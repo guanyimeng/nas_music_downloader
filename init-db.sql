@@ -9,8 +9,8 @@
 -- Create extensions if needed
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- The tables will be created automatically by SQLAlchemy when the app starts
--- This file is mainly for any initial data or custom configurations
+-- Schema is managed by Alembic migrations (applied on container start).
+-- Use this file mainly for initial data or custom configurations that aren't suited for Alembic.
 
 -- You can add initial admin user creation here if needed
 -- INSERT INTO users (username, email, hashed_password, is_admin, is_active) 
