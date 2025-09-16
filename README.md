@@ -1,9 +1,8 @@
 # NAS Music Downloader
 
-A full-stack music downloader optimized for NAS systems. It features a FastAPI backend with PostgreSQL, JWT authentication, audit logging, and a React (Vite) web UI for initiating downloads and monitoring status. Docker Compose is provided to run everything together.
+A full‑stack music downloader optimized for NAS systems. FastAPI backend (PostgreSQL, JWT, audit logging) and a React (Vite) web UI for initiating downloads and monitoring status. Docker Compose is provided to run everything together.
 
 ## Features
-
 - 🎵 Download audio via yt-dlp (YouTube and many others)
 - 🔐 JWT-based auth (register, login, logout, /auth/me)
 - 🧾 Audit logging of user actions
@@ -13,7 +12,6 @@ A full-stack music downloader optimized for NAS systems. It features a FastAPI b
 - 📁 NAS-friendly: mount your NAS path as the downloads directory
 
 ## Architecture
-
 - Backend (FastAPI) on port 8000
 - Frontend (Nginx serving React build) on port 3000
 - Nginx proxies `/auth` and `/api` to the backend
@@ -25,14 +23,12 @@ A full-stack music downloader optimized for NAS systems. It features a FastAPI b
     └── /api  → http://backend:8000/api  (proxy)
 
 [Backend] FastAPI (8000) ↔ PostgreSQL
-Downloads saved to: /app/downloads (host-mounted)
+Downloads saved to: /app/downloads (host‑mounted)
 ```
 
 ## Quick Start (Docker Compose)
-
 Prerequisites:
 - Docker Desktop (or Docker Engine) running
-- Optional: set a host path for downloads
 
 1) Clone the repo
 ```
@@ -40,16 +36,15 @@ git clone <repository-url>
 cd nas_music_downloader
 ```
 
-2) Configure environment
-```
-cp .env.example .env
-```
-- To have downloads saved to a specific host path, set `DOWNLOADS_HOST_PATH` in `.env`. Examples:
-  - Windows: `DOWNLOADS_HOST_PATH=E:/Downloads`
-  - Linux:  `DOWNLOADS_HOST_PATH=/home/you/Music`
-  - macOS:  `DOWNLOADS_HOST_PATH=/Users/you/Music`
-
-If not set, Compose will mount a local `./downloads` folder into the backend container at `/app/downloads`.
+2) Configure the downloads mount
+- Open `docker-compose.yml` and set the host path you want to use for downloads on the `backend` service volumes:
+  ```yaml
+  backend:
+    volumes:
+      - "/home/youruser/Music:/app/downloads:rw"   # Linux example
+      # - "E:/app/downloads:/app/downloads"        # Windows example
+  ```
+- Replace `/home/youruser/Music` (or `E:/app/downloads`) with your NAS/host directory. The right‑hand side must remain `/app/downloads`.
 
 3) Bring up the stack
 ```
@@ -62,29 +57,26 @@ docker compose up -d --build
 - Healthcheck: http://localhost:8000/health
 
 5) Use the UI
-- Register a new account, then login
+- Register, then login
 - Paste a URL to start a download
-- Watch status update (pending/downloading/completed/failed) in Recent Activity or check the History page
+- Watch status in Recent Activity or the History page
 
 ## Local Development (Optional)
-
 You can develop backend and frontend locally without Docker if preferred.
 
 ### Backend (FastAPI)
-Prerequisites: Python 3.11+, Poetry
-
+Prerequisites: Python 3.11+, Poetry, a running PostgreSQL
 ```
 cd backend
 poetry install
-# Ensure a Postgres instance is running and DATABASE_URL is set
+# Ensure DATABASE_URL is set (e.g., postgresql://postgres:password@localhost:5432/nas_music_downloader)
 poetry run uvicorn src.music_downloader.app:app --reload
 ```
-- API at http://localhost:8000
-- Swagger at http://localhost:8000/docs
+- API: http://localhost:8000
+- Swagger: http://localhost:8000/docs
 
 ### Frontend (React + Vite)
 Prerequisites: Node.js 18+ (20+ recommended), npm
-
 ```
 cd frontend
 npm install
@@ -92,26 +84,46 @@ npm run dev
 ```
 - Dev server: http://localhost:5173
 - Dev proxy routes `/auth` and `/api` to http://localhost:8000 (see `vite.config.ts`)
-- CORS in backend allows http://localhost:5173 and http://localhost:3000
 
-## Environment Variables
+## Configuration
+Backend environment variables (see `.env.example`):
+- DATABASE_URL — e.g. `postgresql://postgres:password@postgres:5432/nas_music_downloader`
+- SECRET_KEY — JWT signing key (change in production)
+- ALGORITHM — default HS256
+- ACCESS_TOKEN_EXPIRE_MINUTES — e.g. 30
+- OUTPUT_DIRECTORY — default `/app/downloads`
+- DEBUG — `"true"`/`"false"`
 
-Backend (see `.env.example`):
-- `DATABASE_URL` — e.g. `postgresql://postgres:password@postgres:5432/nas_music_downloader`
-- `SECRET_KEY` — JWT signing key (change in production)
-- `ALGORITHM` — default HS256
-- `ACCESS_TOKEN_EXPIRE_MINUTES` — e.g. 30
-- `OUTPUT_DIRECTORY` — default `/app/downloads`
-- `DEBUG` — `"true"`/`"false"`
+Frontend build‑time (optional):
+- VITE_API_BASE_URL — override Axios baseURL. By default, the app uses relative paths and relies on the proxy (Vite in dev, Nginx in Docker).
 
-Compose-only:
-- `DOWNLOADS_HOST_PATH` — host path to mount for downloads (optional; defaults to `./downloads`)
+## NAS/Host Volume Mapping Examples
+Map your host/NAS path to `/app/downloads` in `docker-compose.yml`:
 
-Frontend build-time (optional):
-- `VITE_API_BASE_URL` — override the axios baseURL. By default, the app uses relative paths and relies on dev proxy (Vite) or Nginx proxy (Docker).
+- Linux
+  ```yaml
+  volumes:
+    - /home/youruser/Music:/app/downloads:rw
+  ```
+- Windows
+  ```yaml
+  volumes:
+    - "E:/app/downloads:/app/downloads"
+  ```
+- Synology
+  ```yaml
+  volumes:
+    - /volume1/music:/app/downloads
+  ```
+- TrueNAS
+  ```yaml
+  volumes:
+    - /mnt/pool/music:/app/downloads
+  ```
+
+Ensure the mounted directory is writable by the container user.
 
 ## Repository Structure
-
 ```
 nas_music_downloader/
 ├── backend/                     # FastAPI app, models, routes, services
@@ -122,44 +134,17 @@ nas_music_downloader/
 │   ├── nginx.conf
 │   └── src/...
 ├── docker-compose.yml           # Postgres + Backend + Frontend
-├── .env.example                 # Example env vars (copy to .env)
+├── .env.example                 # Example env vars
 ├── init-db.sql                  # Optional DB init script
 └── README.md                    # This file
 ```
 
-## NAS Volume Mount Examples
-
-If you prefer to edit `docker-compose.yml` manually rather than using `DOWNLOADS_HOST_PATH`, mount your NAS path to `/app/downloads`:
-
-- Synology
-  ```yaml
-  volumes:
-    - /volume1/music:/app/downloads
-  ```
-- QNAP
-  ```yaml
-  volumes:
-    - /share/music:/app/downloads
-  ```
-- TrueNAS
-  ```yaml
-  volumes:
-    - /mnt/pool/music:/app/downloads
-  ```
-- Ugreen
-  ```yaml
-  volumes:
-    - /media/usb/music:/app/downloads
-  ```
-
 ## Troubleshooting
-
-- Docker compose fails to pull images or connect: ensure Docker Desktop is running.
-- “npm not recognized” during local dev: install Node.js from https://nodejs.org and make sure npm is on PATH.
+- Docker errors: ensure Docker Desktop/Engine is running and ports 3000/8000/5432 are free.
 - 401 Unauthorized: login again; tokens from old SECRET_KEY values become invalid.
-- CORS in dev: Vite proxies to the backend; ensure backend is on http://localhost:8000.
-- Paths on Windows: use forward slashes (e.g., `E:/Downloads`) in `.env` for `DOWNLOADS_HOST_PATH`.
+- CORS in dev: Vite proxies to the backend; ensure backend is running at http://localhost:8000.
+- Permission errors writing downloads: ensure the host mount path is writable by the container user.
+- yt‑dlp failures: check backend logs; availability can vary by site/network.
 
 ## License
-
 MIT License. See `LICENSE` if present or include your chosen license terms.
