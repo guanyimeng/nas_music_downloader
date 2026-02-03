@@ -36,15 +36,12 @@ git clone <repository-url>
 cd nas_music_downloader
 ```
 
-2) Configure the downloads mount
-- Open `docker-compose.yml` and set the host path you want to use for downloads on the `backend` service volumes:
-  ```yaml
-  backend:
-    volumes:
-      - "/home/youruser/Music:/app/downloads:rw"   # Linux example
-      # - "E:/app/downloads:/app/downloads"        # Windows example
+2) Create and configure environment file
+- Copy `.env.example` to `.env`:
   ```
-- Replace `/home/youruser/Music` (or `E:/app/downloads`) with your NAS/host directory. The right‑hand side must remain `/app/downloads`.
+  cp .env.example .env
+  ```
+- Edit `.env` to set your NAS storage path in `NAS_STORAGE_PATH` (e.g., `/home/youruser/Music:/app/downloads:rw` for Linux). This mounts your host directory to the container's downloads folder.
 
 3) Bring up the stack
 ```
@@ -86,40 +83,30 @@ npm run dev
 - Dev proxy routes `/auth` and `/api` to http://localhost:8000 (see `vite.config.ts`)
 
 ## Configuration
-Backend environment variables (see `.env.example`):
-- DATABASE_URL — e.g. `postgresql://postgres:password@postgres:5432/nas_music_downloader`
-- SECRET_KEY — JWT signing key (change in production)
-- ALGORITHM — default HS256
-- ACCESS_TOKEN_EXPIRE_MINUTES — e.g. 30
-- OUTPUT_DIRECTORY — default `/app/downloads`
-- DEBUG — `"true"`/`"false"`
+Create a `.env` file from `.env.example` and adjust the values as needed. Backend environment variables:
+
+- `NAS_STORAGE_PATH` — Host path to mount for downloads, e.g., `/home/youruser/Music:/app/downloads:rw` (Linux) or `E:/app/downloads:/app/downloads` (Windows)
+- `DATABASE_URL` — PostgreSQL connection string, e.g., `postgresql://postgres:password@postgres:5432/nas_music_downloader`
+- `POSTGRES_DB` — Database name, default `nas_music_downloader`
+- `POSTGRES_USER` — Database user, default `postgres`
+- `POSTGRES_PASSWORD` — Database password, default `password`
+- `PORTS_MAPPING` — Port mapping for Postgres, e.g., `54322:5432`
+- `SECRET_KEY` — JWT signing key (change in production, use `openssl rand -hex 32`)
+- `ALGORITHM` — JWT algorithm, default `HS256`
+- `ACCESS_TOKEN_EXPIRE_MINUTES` — Token expiration time in minutes, default `30`
+- `OUTPUT_DIRECTORY` — Directory inside container for downloads, default `/app/downloads`
+- `DEBUG` — Enable debug mode, `"true"` or `"false"` (default `false`)
 
 Frontend build‑time (optional):
-- VITE_API_BASE_URL — override Axios baseURL. By default, the app uses relative paths and relies on the proxy (Vite in dev, Nginx in Docker).
+- `VITE_API_BASE_URL` — Override Axios baseURL. By default, the app uses relative paths and relies on the proxy (Vite in dev, Nginx in Docker).
 
 ## NAS/Host Volume Mapping Examples
-Map your host/NAS path to `/app/downloads` in `docker-compose.yml`:
+Set `NAS_STORAGE_PATH` in your `.env` file to map your host/NAS path to `/app/downloads` in the container:
 
-- Linux
-  ```yaml
-  volumes:
-    - /home/youruser/Music:/app/downloads:rw
-  ```
-- Windows
-  ```yaml
-  volumes:
-    - "E:/app/downloads:/app/downloads"
-  ```
-- Synology
-  ```yaml
-  volumes:
-    - /volume1/music:/app/downloads
-  ```
-- TrueNAS
-  ```yaml
-  volumes:
-    - /mnt/pool/music:/app/downloads
-  ```
+- Linux: `NAS_STORAGE_PATH="/home/youruser/Music:/app/downloads:rw"`
+- Windows: `NAS_STORAGE_PATH="E:/app/downloads:/app/downloads"`
+- Synology: `NAS_STORAGE_PATH="/volume1/music:/app/downloads"`
+- TrueNAS: `NAS_STORAGE_PATH="/mnt/pool/music:/app/downloads"`
 
 Ensure the mounted directory is writable by the container user.
 
@@ -156,12 +143,6 @@ This script updates yt-dlp via Poetry, commits the changes to `poetry.lock`, and
 To update the application on your NAS/server:
 
 ```bash
-# SSH into your server
-ssh user@your-server-ip
-
-# Navigate to the project directory
-cd /path/to/nas_music_downloader
-
 # Pull latest changes
 git pull origin main
 
