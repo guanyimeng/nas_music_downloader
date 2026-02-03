@@ -141,7 +141,18 @@ nas_music_downloader/
 
 ## Updating the Application
 
-### Rebuild on Server
+### Update yt-dlp
+To update yt-dlp to the latest version:
+
+```bash
+cd backend
+chmod +x update_yt-dlp.sh
+./update_yt-dlp.sh
+```
+
+This script updates yt-dlp via Poetry, commits the changes to `poetry.lock`, and pushes to the remote repository.
+
+### Rebuild backend
 To update the application on your NAS/server:
 
 ```bash
@@ -155,20 +166,10 @@ cd /path/to/nas_music_downloader
 git pull origin main
 
 # Rebuild and restart containers
-docker compose down
-docker compose up -d --build
-```
-
-### Update yt-dlp
-To update yt-dlp to the latest version:
-
 ```bash
-cd backend
-chmod +x update_yt-dlp.sh
-./update_yt-dlp.sh
+docker compose down
+docker compose up -d --build backend
 ```
-
-This script updates yt-dlp via Poetry, commits the changes to `poetry.lock`, and pushes to the remote repository.
 
 ## License
 MIT License. See `LICENSE` if present or include your chosen license terms.
