@@ -139,12 +139,35 @@ nas_music_downloader/
 └── README.md                    # This file
 ```
 
-## Troubleshooting
-- Docker errors: ensure Docker Desktop/Engine is running and ports 3000/8000/5432 are free.
-- 401 Unauthorized: login again; tokens from old SECRET_KEY values become invalid.
-- CORS in dev: Vite proxies to the backend; ensure backend is running at http://localhost:8000.
-- Permission errors writing downloads: ensure the host mount path is writable by the container user.
-- yt‑dlp failures: check backend logs; availability can vary by site/network.
+## Updating the Application
+
+### Rebuild on Server
+To update the application on your NAS/server:
+
+```bash
+# SSH into your server
+ssh user@your-server-ip
+
+# Navigate to the project directory
+cd /path/to/nas_music_downloader
+
+# Pull latest changes
+git pull origin main
+
+# Rebuild and restart containers
+docker compose down
+docker compose up -d --build
+```
+
+### Update yt-dlp
+To update yt-dlp to the latest version:
+
+```bash
+cd backend
+./update_yt-dlp.sh
+```
+
+This script updates yt-dlp via Poetry, commits the changes to `poetry.lock`, and pushes to the remote repository.
 
 ## License
 MIT License. See `LICENSE` if present or include your chosen license terms.

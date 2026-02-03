@@ -5,14 +5,14 @@ services:
     image: postgres:15-alpine
     container_name: nas_music_downloader_db
     environment:
-      POSTGRES_DB: nas_music_downloader
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
-      - "5432:5432" # Change if needed
+      - ${PORTS_MAPPING}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -20,18 +20,21 @@ services:
       retries: 5
 
   backend:
+    env_file:
+      - .env
     build: 
       context: ./backend
       dockerfile: Dockerfile
     container_name: nas_music_backend
     environment:
-      DATABASE_URL: postgresql://postgres:password@postgres:5432/nas_music_downloader
-      SECRET_KEY: your-secret-key-change-in-production
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       DEBUG: "false"
       OUTPUT_DIRECTORY: /app/downloads
     volumes:
-      - "/home/dolphins22/Music:/app/downloads:rw" # NAS storage path here - adjust the host path as needed
-      # - "E:/app/downloads:/app/downloads" # Testing in docker on Windows
+      - "${NAS_STORAGE_PATH}"
     ports:
       - "8000:8000"
     depends_on:
