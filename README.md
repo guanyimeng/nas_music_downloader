@@ -164,6 +164,7 @@ To update yt-dlp to the latest version:
 
 ```bash
 cd backend
+chmod +x update_yt-dlp.sh
 ./update_yt-dlp.sh
 ```
 
