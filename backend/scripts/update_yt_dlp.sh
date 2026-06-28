@@ -15,3 +15,6 @@ else
     echo "yt-dlp updated to latest and changes pushed to remote."
 fi
 
+# On Nas:
+# git pull
+# sudo docker compose up -d --build
