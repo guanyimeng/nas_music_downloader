@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd /home/dolphins22/Documents/Dev/nas_music_downloader/backend/
+cd /home/dolphins22/Documents/dev/nas_music_downloader/backend/
 
 # Update yt-dlp to latest
 poetry update yt-dlp
