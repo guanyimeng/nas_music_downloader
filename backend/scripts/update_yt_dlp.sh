@@ -16,5 +16,6 @@ else
 fi
 
 # On Nas:
+# cd Docs/Dev/nas_music_downloader
 # git pull
 # sudo docker compose up -d --build
